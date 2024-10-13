@@ -20,19 +20,32 @@ func main() {
 type errMsg error
 
 type model struct {
+    viewProps viewProps
 	textInput textinput.Model
 	engine    engine.Engine
 	board     [][]int
 	err       error
 }
 
+type viewProps struct {
+	header     string
+	padNumbers bool
+}
+
 func initialModel() model {
-    boardSize := 9 // TODO: get from user
+	boardSize := engine.Board9x9 // TODO: get from user
 	ti := textinput.New()
-    ti.Placeholder = "a1" // TODO: Remove after first run
+	ti.Placeholder = "a1" // TODO: Remove after first run
 	ti.Focus()
-	ti.CharLimit = len(fmt.Sprintf("%v", boardSize)) + 1
-	ti.Width = 5
+	viewProps := viewProps{header: getHeader(boardSize)}
+
+	if boardSize > engine.Board9x9 {
+		viewProps.padNumbers = true
+		ti.CharLimit = 3
+	} else {
+		ti.CharLimit = 2
+	}
+
 	e := engine.Engine{}
 	board := e.InitBoard(boardSize, 1, 2, true)
 
@@ -40,6 +53,7 @@ func initialModel() model {
 		textInput: ti,
 		engine:    e,
 		board:     board,
+        viewProps: viewProps,
 	}
 }
 
@@ -51,16 +65,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	// Is it a key press?
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
-        case "enter":
-            m.err = m.engine.MakeMove(m.textInput.Value())    
-            m.textInput.Reset()
+		case "enter":
+			m.err = m.engine.MakeMove(m.textInput.Value())
+			m.textInput.Reset()
 		}
-	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
 		return m, nil
@@ -71,25 +83,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// TODO: make view proper when size > 9
-	var rowStrings []string
-	rowStrings = append(rowStrings, "   a b c d e f g h i")
+	var sb strings.Builder
+
+	sb.WriteString(m.viewProps.header)
 	for i, row := range m.board {
-		rowStrings = append(rowStrings, fmt.Sprintf("%d %v", i+1, row))
+		if m.viewProps.padNumbers && i < 9 {
+			sb.WriteString(fmt.Sprintf("\n %d %v", i+1, row))
+		} else {
+			sb.WriteString(fmt.Sprintf("\n%d %v", i+1, row))
+		}
 	}
-    
-    if m.err != nil {
-        // return fmt.Sprintf("\nError: %v\n", m.err)
-        return fmt.Sprintf(
-            "%v\n\n%s\n%v\n%s",
-            strings.Join(rowStrings, "\n"), m.textInput.View(),
-            m.err,
-            "(esc to quit)",
-        ) + "\n"
-    }
+
+	if m.err != nil {
+		return fmt.Sprintf(
+			"%s\n\n%s\n%s\n%s",
+			sb.String(), m.textInput.View(), m.err,
+			"(esc to quit)",
+		) + "\n"
+	}
 	return fmt.Sprintf(
-		"%v\n\n%s\n\n%s",
-		strings.Join(rowStrings, "\n"), m.textInput.View(),
+		"%s\n\n%s\n\n%s",
+		sb.String(), m.textInput.View(),
 		"(esc to quit)",
 	) + "\n"
+}
+
+func getHeader(boardSize engine.BoardSize) string {
+	var sb strings.Builder
+    if boardSize <= engine.Board9x9{
+        sb.WriteString("  ")
+    } else {
+        sb.WriteString("   ")
+    }
+	for i := range boardSize {
+		sb.WriteString(fmt.Sprintf(" %c", 97+i))
+	}
+	return sb.String()
 }
