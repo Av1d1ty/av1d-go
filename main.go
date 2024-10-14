@@ -20,16 +20,21 @@ func main() {
 type errMsg error
 
 type model struct {
-    viewProps viewProps
+	viewProps viewProps
 	textInput textinput.Model
 	engine    engine.Engine
-	board     [][]int
+	board     [][]engine.Stone
 	err       error
 }
 
 type viewProps struct {
 	header     string
 	padNumbers bool
+}
+
+// NOTE: implement String interface on Stone instead?
+var boardTranslation = map[engine.Stone]rune{
+	engine.Empty: ' ', engine.Black: '○', engine.White: '●',
 }
 
 func initialModel() model {
@@ -47,13 +52,13 @@ func initialModel() model {
 	}
 
 	e := engine.Engine{}
-	board := e.InitBoard(boardSize, 1, 2, true)
+	board := e.InitBoard(boardSize)
 
 	return model{
 		textInput: ti,
 		engine:    e,
 		board:     board,
-        viewProps: viewProps,
+		viewProps: viewProps,
 	}
 }
 
@@ -88,9 +93,14 @@ func (m model) View() string {
 	sb.WriteString(m.viewProps.header)
 	for i, row := range m.board {
 		if m.viewProps.padNumbers && i < 9 {
-			sb.WriteString(fmt.Sprintf("\n %d %v", i+1, row))
+			sb.WriteString("\n ")
 		} else {
-			sb.WriteString(fmt.Sprintf("\n%d %v", i+1, row))
+			sb.WriteString("\n")
+		}
+		sb.WriteString(fmt.Sprintf("%d ", i+1))
+		for _, item := range row {
+			sb.WriteByte(' ')
+			sb.WriteRune(boardTranslation[item])
 		}
 	}
 
@@ -110,12 +120,13 @@ func (m model) View() string {
 
 func getHeader(boardSize engine.BoardSize) string {
 	var sb strings.Builder
-    if boardSize <= engine.Board9x9{
-        sb.WriteString("  ")
-    } else {
-        sb.WriteString("   ")
-    }
+	if boardSize <= engine.Board9x9 {
+		sb.WriteString("  ")
+	} else {
+		sb.WriteString("   ")
+	}
 	for i := range boardSize {
+		// NOTE: "I" is usually skipped in notation, but I don't care enough ATM
 		sb.WriteString(fmt.Sprintf(" %c", 97+i))
 	}
 	return sb.String()

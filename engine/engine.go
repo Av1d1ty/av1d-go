@@ -6,11 +6,9 @@ import (
 )
 
 type Engine struct {
-	board      [][]int
-	boardSize  BoardSize
-	playerInt  int
-	machineInt int
-	playerTurn bool
+	board        [][]Stone
+	boardSize    BoardSize
+	activePlayer Stone
 }
 
 type BoardSize int
@@ -21,20 +19,26 @@ const (
 	Board19x19 BoardSize = 19
 )
 
+type Stone int
+
+const (
+	Empty Stone = 0
+	Black Stone = 1
+	White Stone = 2
+)
+
 type move struct {
 	row int
 	col int
 }
 
-func (e *Engine) InitBoard(size BoardSize, playerInt int, machineInt int, playerTurn bool) [][]int {
+func (e *Engine) InitBoard(size BoardSize) [][]Stone {
 	e.boardSize = size
-	e.playerInt = playerInt
-	e.machineInt = machineInt
-	e.playerTurn = playerTurn
+	e.activePlayer = Black
 
-	e.board = make([][]int, size)
+	e.board = make([][]Stone, size)
 	for i := range e.board {
-		e.board[i] = make([]int, size)
+		e.board[i] = make([]Stone, size)
 	}
 	return e.board
 }
@@ -45,8 +49,7 @@ func (e *Engine) MakeMove(input string) error {
 	if err != nil {
 		return err
 	}
-	e.makeMove(move)
-	return nil
+	return e.makeMove(move)
 }
 
 func (e *Engine) getMoveFromString(input string) (move, error) {
@@ -70,7 +73,30 @@ func (e *Engine) getMoveFromString(input string) (move, error) {
 	return move{row: row - 1, col: int(col - 97)}, nil
 }
 
-func (m *Engine) makeMove(move move) {
-	m.board[move.row][move.col] = m.playerInt
-	// TODO: further game logic
+func (e *Engine) makeMove(move move) error {
+	if err := e.validateMove(move); err != nil {
+		return err
+	}
+	e.board[move.row][move.col] = e.activePlayer
+    e.revalidateBoard(move)
+
+	if e.activePlayer == Black {
+		e.activePlayer = White
+	} else {
+		e.activePlayer = Black
+	}
+
+	return nil
+}
+
+func (e *Engine) validateMove(move move) error {
+	if e.board[move.row][move.col] != Empty {
+		return fmt.Errorf("Position is already taken")
+	}
+	// TODO: further validatein
+	return nil
+}
+
+func (e *Engine) revalidateBoard(move move) {
+    // TODO: game logic
 }
