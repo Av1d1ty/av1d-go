@@ -9,6 +9,8 @@ type Engine struct {
 	board        [][]Stone
 	boardSize    BoardSize
 	activePlayer Stone
+	passCount    int
+	GameEnded    bool
 }
 
 type BoardSize int
@@ -28,8 +30,9 @@ const (
 )
 
 type move struct {
-	row int
-	col int
+	row    int
+	col    int
+	isPass bool
 }
 
 func (e *Engine) InitBoard(size BoardSize) [][]Stone {
@@ -44,7 +47,14 @@ func (e *Engine) InitBoard(size BoardSize) [][]Stone {
 }
 
 // Parse input string and make the move
+//
+// Valid input is as follows:
+// 'a1', 'h11' - positions on board;
+// '/' - pass;
 func (e *Engine) MakeMove(input string) error {
+	if e.GameEnded {
+		return fmt.Errorf("The game has already ended")
+	}
 	move, err := e.getMoveFromString(input)
 	if err != nil {
 		return err
@@ -53,6 +63,9 @@ func (e *Engine) MakeMove(input string) error {
 }
 
 func (e *Engine) getMoveFromString(input string) (move, error) {
+	if input == "/" {
+		return move{isPass: true}, nil
+	}
 	inputLen := len(input)
 	if inputLen < 2 {
 		return move{}, fmt.Errorf("Input is too short")
@@ -77,26 +90,38 @@ func (e *Engine) makeMove(move move) error {
 	if err := e.validateMove(move); err != nil {
 		return err
 	}
-	e.board[move.row][move.col] = e.activePlayer
-    e.revalidateBoard(move)
+	if move.isPass {
+		e.passCount++
+	} else {
+		e.board[move.row][move.col] = e.activePlayer
+	}
+	e.revalidateBoard(move)
+	e.swapTurns()
+	return nil
+}
 
+func (e *Engine) swapTurns() {
 	if e.activePlayer == Black {
 		e.activePlayer = White
 	} else {
 		e.activePlayer = Black
 	}
-
-	return nil
 }
 
 func (e *Engine) validateMove(move move) error {
+	if move.isPass {
+		return nil
+	}
 	if e.board[move.row][move.col] != Empty {
 		return fmt.Errorf("Position is already taken")
 	}
-	// TODO: further validatein
+	// TODO: further validation
 	return nil
 }
 
 func (e *Engine) revalidateBoard(move move) {
-    // TODO: game logic
+	if e.passCount == 2 {
+		e.GameEnded = true
+	}
+	// TODO: game logic
 }

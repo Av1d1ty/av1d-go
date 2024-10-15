@@ -25,6 +25,9 @@ type model struct {
 	engine    engine.Engine
 	board     [][]engine.Stone
 	err       error
+
+	lastBoard    string
+	stateChanged bool
 }
 
 type viewProps struct {
@@ -32,7 +35,6 @@ type viewProps struct {
 	padNumbers bool
 }
 
-// NOTE: implement String interface on Stone instead?
 var boardTranslation = map[engine.Stone]rune{
 	engine.Empty: ' ', engine.Black: '○', engine.White: '●',
 }
@@ -55,10 +57,11 @@ func initialModel() model {
 	board := e.InitBoard(boardSize)
 
 	return model{
-		textInput: ti,
-		engine:    e,
-		board:     board,
-		viewProps: viewProps,
+		textInput:    ti,
+		engine:       e,
+		board:        board,
+		viewProps:    viewProps,
+		stateChanged: true,
 	}
 }
 
@@ -67,6 +70,10 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.engine.GameEnded {
+		return m, tea.Quit
+	}
+
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -77,6 +84,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.err = m.engine.MakeMove(m.textInput.Value())
 			m.textInput.Reset()
+			m.stateChanged = true
 		}
 	case errMsg:
 		m.err = msg
@@ -88,6 +96,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if !m.stateChanged {
+		return m.lastBoard
+	}
+	m.stateChanged = false
+
 	var sb strings.Builder
 
 	sb.WriteString(m.viewProps.header)
@@ -103,19 +116,17 @@ func (m model) View() string {
 			sb.WriteRune(boardTranslation[item])
 		}
 	}
-
+	sb.WriteString(fmt.Sprintf("\n\n%s\n", m.textInput.View()))
 	if m.err != nil {
-		return fmt.Sprintf(
-			"%s\n\n%s\n%s\n%s",
-			sb.String(), m.textInput.View(), m.err,
-			"(esc to quit)",
-		) + "\n"
+		sb.WriteString(m.err.Error())
 	}
-	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s",
-		sb.String(), m.textInput.View(),
-		"(esc to quit)",
-	) + "\n"
+	if m.engine.GameEnded {
+		sb.WriteString("\nGame over!\n")
+	} else {
+		sb.WriteString("\nEsc - quit; '/' - pass\n")
+	}
+	m.lastBoard = sb.String()
+	return m.lastBoard
 }
 
 func getHeader(boardSize engine.BoardSize) string {
@@ -126,7 +137,6 @@ func getHeader(boardSize engine.BoardSize) string {
 		sb.WriteString("   ")
 	}
 	for i := range boardSize {
-		// NOTE: "I" is usually skipped in notation, but I don't care enough ATM
 		sb.WriteString(fmt.Sprintf(" %c", 97+i))
 	}
 	return sb.String()
