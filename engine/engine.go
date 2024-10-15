@@ -93,6 +93,7 @@ func (e *Engine) makeMove(move move) error {
 	if move.isPass {
 		e.passCount++
 	} else {
+        e.passCount = 0
 		e.board[move.row][move.col] = e.activePlayer
 	}
 	e.revalidateBoard(move)
